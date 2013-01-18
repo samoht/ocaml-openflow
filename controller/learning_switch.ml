@@ -38,16 +38,29 @@ type mac_switch = {
   switch: OP.datapath_id;
 }
 
+module Dummy_cache = struct
+  let size = 2048
+  type t = OP.Port.t option array
+  let hash str = (Hashtbl.hash str) mod 2048
+  let mem t v = t.(hash v) <> None
+  let add t v k = t.(hash v) <- (Some k)
+  let find t v = match t.(hash v) with
+    | Some v -> v
+    | None   -> raise Not_found
+  let create () = Array.create size None
+end
+
+
 type switch_state = {
 (*   mutable mac_cache: (mac_switch, OP.Port.t) Hashtbl.t; *)
-  mutable mac_cache: (OP.eaddr, OP.Port.t) Hashtbl.t; 
+  mac_cache: Dummy_cache.t; 
 (*  mutable dpid: OP.datapath_id list;
   mutable of_ctrl: OC.t list; *)
   req_count: int ref; 
 }
 
 let switch_data = 
- { mac_cache = Hashtbl.create 2048; (* dpid = []; 
+ { mac_cache = Dummy_cache.create (); (* dpid = []; 
     of_ctrl = []; *) req_count=(ref 0);} 
 
 
@@ -74,14 +87,14 @@ let packet_in_cb controller dpid evt =
 
   (* Store src mac address and incoming port *)
   let ix = m.OP.Match.dl_src in
-  let _ = Hashtbl.replace switch_data.mac_cache ix in_port in
+  Dummy_cache.add switch_data.mac_cache ix in_port;
  
   (* check if I know the output port in order to define what type of message
    * we need to send *)
   let broadcast = String.make 6 '\255' in
   let ix = m.OP.Match.dl_dst in
   if ( (ix = broadcast)
-       || (not (Hashtbl.mem switch_data.mac_cache ix)) ) 
+       || (not (Dummy_cache.mem switch_data.mac_cache ix)) ) 
   then (
     let bs = 
       OP.marshal_and_sub 
@@ -92,7 +105,7 @@ let packet_in_cb controller dpid evt =
            ~data:data ~in_port:in_port () )) (Cstruct.of_bigarray (OS.Io_page.get ())) in   
         OC.send_of_data controller dpid bs
   ) else (
-    let out_port = (Hashtbl.find switch_data.mac_cache ix) in
+    let out_port = Dummy_cache.find switch_data.mac_cache ix in
     let flags = OP.Flow_mod.({send_flow_rem=true; emerg=false; overlap=false;}) in 
     lwt _ = 
       if (buffer_id = -1l) then
