@@ -1,6 +1,9 @@
 .PHONY: all clean distclean setup build doc install test 
 all: build
 
+native:
+	ocamlbuild controller/learning_switch.native
+
 NAME=openflow
 J=4
 
