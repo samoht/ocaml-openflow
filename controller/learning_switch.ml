@@ -75,7 +75,7 @@ let datapath_join_cb controller dpid evt =
 
 let req_count = (ref 0)
 
-let page_packet = Cstruct.of_bigarray (OS.Io_page.get ())
+let page = Cstruct.of_bigarray (OS.Io_page.get ())
 
 let packet_in_cb controller dpid evt =
   incr switch_data.req_count;
