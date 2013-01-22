@@ -1,6 +1,8 @@
 .PHONY: all clean distclean setup build doc install test 
 all: build
 
+byte:
+	ocamlbuild controller/learning_switch.byte
 native:
 	ocamlbuild controller/learning_switch.native
 
